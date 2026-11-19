@@ -1,0 +1,95 @@
+import json
+import subprocess
+import sys
+
+import numpy as np
+import pytest
+from PIL import Image
+
+from pixelforge import apply_ops, list_ops, load_image
+
+
+@pytest.fixture
+def img():
+    arr = np.zeros((150, 200, 3), dtype=np.uint8)
+    arr[..., 0] = np.linspace(0, 255, 200).astype(np.uint8)
+    arr[..., 1] = 100
+    arr[..., 2] = np.linspace(255, 0, 150)[:, None].astype(np.uint8)
+    return Image.fromarray(arr)
+
+
+ALL_OPS = {
+    "exposure": {"ev": 0.5},
+    "brightness": {"factor": 1.2},
+    "contrast": {"factor": 1.2},
+    "saturation": {"factor": 1.2},
+    "temperature": {"value": 20},
+    "tint": {"value": -10},
+    "highlights": {"value": 30},
+    "shadows": {"value": 30},
+    "whites": {"value": 20},
+    "blacks": {"value": -20},
+    "clarity": {"value": 40},
+    "sharpness": {"factor": 1.5},
+    "blur": {"radius": 2},
+    "vignette": {"strength": 30},
+    "crop": {"left": 10, "top": 10, "right": 100, "bottom": 80},
+    "resize": {"width": 100},
+    "rotate": {"angle": 15},
+    "flip": {"direction": "vertical"},
+    "grayscale": {},
+    "autocontrast": {},
+    "gamma": {"value": 1.5},
+    "hue": {"degrees": 30},
+    "invert": {},
+    "text": {"text": "test", "size": 20},
+    "border": {"width": 5},
+}
+
+
+@pytest.mark.parametrize("name,params", ALL_OPS.items())
+def test_each_op_runs(img, name, params):
+    out, applied = apply_ops(img, [{"op": name, **params}])
+    assert isinstance(out, Image.Image)
+    assert applied == [name]
+
+
+def test_resize_changes_size(img):
+    out, _ = apply_ops(img, [{"op": "resize", "width": 100}])
+    assert out.size == (100, 75)
+
+
+def test_grayscale_mode(img):
+    out, _ = apply_ops(img, [{"op": "grayscale"}])
+    assert out.mode == "L"
+
+
+def test_unknown_op_errors(img):
+    with pytest.raises(ValueError, match="unknown op"):
+        apply_ops(img, [{"op": "nope"}])
+
+
+def test_out_of_range_errors(img):
+    with pytest.raises(ValueError, match="out of range"):
+        apply_ops(img, [{"op": "exposure", "ev": 99}])
+
+
+def test_list_ops_schema():
+    ops = list_ops()
+    assert "exposure" in ops
+    assert ops["exposure"]["params"]["ev"]["max"] == 3
+
+
+def test_cli_edit_roundtrip(tmp_path, img):
+    src = tmp_path / "in.jpg"
+    dst = tmp_path / "out.jpg"
+    img.save(src)
+    r = subprocess.run(
+        [sys.executable, "-m", "pixelforge.cli", "edit", "-i", str(src), "-o", str(dst),
+         "--ops", json.dumps([{"op": "temperature", "value": 15}])],
+        capture_output=True, text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    payload = json.loads(r.stdout)
+    assert payload["ops_applied"] == ["temperature"]
+    assert load_image(str(dst)).size == img.size

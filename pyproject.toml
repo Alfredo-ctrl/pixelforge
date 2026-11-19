@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pixelforge"
+version = "0.1.0"
+description = "Professional image editing toolkit built for AI agents. CLI, Python API and MCP server."
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Alfredo Ramos"}]
+requires-python = ">=3.10"
+dependencies = [
+    "Pillow>=10",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+bg = ["rembg", "onnxruntime"]
+
+[project.scripts]
+pixelforge = "pixelforge.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pixelforge*"]
