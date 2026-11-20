@@ -169,6 +169,16 @@ def op_invert(img):
     return _join(ImageOps.invert(rgb), a)
 
 
+def op_posterize(img, bits=4):
+    rgb, a = _split(img)
+    return _join(ImageOps.posterize(rgb, bits), a)
+
+
+def op_equalize(img):
+    rgb, a = _split(img)
+    return _join(ImageOps.equalize(rgb), a)
+
+
 # --- geometry ---
 
 
@@ -329,6 +339,16 @@ OPS = {
     "invert": {
         "fn": op_invert,
         "desc": "Negative image.",
+        "params": {},
+    },
+    "posterize": {
+        "fn": op_posterize,
+        "desc": "Cut the colors down to a few flat levels. Low bits means a poster look.",
+        "params": {"bits": _p("integer", 4, "Bits per channel, 1 to 8. Lower means fewer colors.", min=1, max=8)},
+    },
+    "equalize": {
+        "fn": op_equalize,
+        "desc": "Spread the histogram out so the tones use the full range.",
         "params": {},
     },
     "crop": {

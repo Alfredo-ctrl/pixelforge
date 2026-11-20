@@ -42,6 +42,8 @@ ALL_OPS = {
     "gamma": {"value": 1.5},
     "hue": {"degrees": 30},
     "invert": {},
+    "posterize": {"bits": 2},
+    "equalize": {},
     "text": {"text": "test", "size": 20},
     "border": {"width": 5},
 }
@@ -78,6 +80,19 @@ def test_list_ops_schema():
     ops = list_ops()
     assert "exposure" in ops
     assert ops["exposure"]["params"]["ev"]["max"] == 3
+
+
+def test_posterize_limits_colors(img):
+    out, _ = apply_ops(img, [{"op": "posterize", "bits": 1}])
+    assert out.size == img.size
+    # 1 bit per channel leaves only 0 and 128 as possible values
+    assert set(np.unique(np.asarray(out.convert("RGB")))) <= {0, 128}
+
+
+def test_equalize_keeps_size_and_changes_pixels(img):
+    out, _ = apply_ops(img, [{"op": "equalize"}])
+    assert out.size == img.size
+    assert not np.array_equal(np.asarray(out), np.asarray(img))
 
 
 def test_cli_edit_roundtrip(tmp_path, img):
