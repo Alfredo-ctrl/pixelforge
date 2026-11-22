@@ -190,6 +190,14 @@ def op_sepia(img, intensity=1.0):
     return _from_arr(arr + (sepia - arr) * intensity, a)
 
 
+def op_solarize(img, threshold=128):
+    # flip the bright tones, keep the dark ones — classic darkroom look
+    rgb, a = _split(img)
+    arr = _arr(rgb)
+    out = np.where(arr > threshold, 255 - arr, arr)
+    return _from_arr(out, a)
+
+
 # --- geometry ---
 
 
@@ -366,6 +374,11 @@ OPS = {
         "fn": op_sepia,
         "desc": "Warm old-photo tone. 0 keeps the original, 1 is full sepia.",
         "params": {"intensity": _p("number", 1.0, "Sepia strength", min=0, max=1)},
+    },
+    "solarize": {
+        "fn": op_solarize,
+        "desc": "Flip tones above the threshold to their negative, keep the rest. Darkroom solarization look.",
+        "params": {"threshold": _p("integer", 128, "Tones above this get inverted", min=0, max=255)},
     },
     "crop": {
         "fn": op_crop,

@@ -45,6 +45,7 @@ ALL_OPS = {
     "posterize": {"bits": 2},
     "equalize": {},
     "sepia": {"intensity": 1},
+    "solarize": {"threshold": 128},
     "text": {"text": "test", "size": 20},
     "border": {"width": 5},
 }
@@ -105,6 +106,17 @@ def test_sepia_warms_pixels(img):
     # intensity 0 leaves the image alone
     out0, _ = apply_ops(img, [{"op": "sepia", "intensity": 0}])
     assert np.array_equal(np.asarray(out0), np.asarray(img))
+
+
+def test_solarize_flips_bright_tones(img):
+    out, _ = apply_ops(img, [{"op": "solarize", "threshold": 128}])
+    assert out.size == img.size
+    src = np.asarray(img.convert("RGB")).astype(int)
+    got = np.asarray(out.convert("RGB")).astype(int)
+    # bright tones flip to their negative, dark tones stay put
+    bright = src > 128
+    assert np.array_equal(got[bright], 255 - src[bright])
+    assert np.array_equal(got[~bright], src[~bright])
 
 
 def test_cli_edit_roundtrip(tmp_path, img):
