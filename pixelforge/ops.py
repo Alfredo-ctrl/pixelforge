@@ -179,6 +179,17 @@ def op_equalize(img):
     return _join(ImageOps.equalize(rgb), a)
 
 
+def op_sepia(img, intensity=1.0):
+    rgb, a = _split(img)
+    arr = _arr(rgb)
+    r, g, b = arr[..., 0], arr[..., 1], arr[..., 2]
+    sr = r * 0.393 + g * 0.769 + b * 0.189
+    sg = r * 0.349 + g * 0.686 + b * 0.168
+    sb = r * 0.272 + g * 0.534 + b * 0.131
+    sepia = np.stack([sr, sg, sb], axis=-1)
+    return _from_arr(arr + (sepia - arr) * intensity, a)
+
+
 # --- geometry ---
 
 
@@ -350,6 +361,11 @@ OPS = {
         "fn": op_equalize,
         "desc": "Spread the histogram out so the tones use the full range.",
         "params": {},
+    },
+    "sepia": {
+        "fn": op_sepia,
+        "desc": "Warm old-photo tone. 0 keeps the original, 1 is full sepia.",
+        "params": {"intensity": _p("number", 1.0, "Sepia strength", min=0, max=1)},
     },
     "crop": {
         "fn": op_crop,

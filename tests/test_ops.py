@@ -44,6 +44,7 @@ ALL_OPS = {
     "invert": {},
     "posterize": {"bits": 2},
     "equalize": {},
+    "sepia": {"intensity": 1},
     "text": {"text": "test", "size": 20},
     "border": {"width": 5},
 }
@@ -93,6 +94,17 @@ def test_equalize_keeps_size_and_changes_pixels(img):
     out, _ = apply_ops(img, [{"op": "equalize"}])
     assert out.size == img.size
     assert not np.array_equal(np.asarray(out), np.asarray(img))
+
+
+def test_sepia_warms_pixels(img):
+    out, _ = apply_ops(img, [{"op": "sepia", "intensity": 1}])
+    assert out.size == img.size
+    arr = np.asarray(out.convert("RGB")).astype(int)
+    # sepia pushes red above blue on average
+    assert arr[..., 0].mean() > arr[..., 2].mean()
+    # intensity 0 leaves the image alone
+    out0, _ = apply_ops(img, [{"op": "sepia", "intensity": 0}])
+    assert np.array_equal(np.asarray(out0), np.asarray(img))
 
 
 def test_cli_edit_roundtrip(tmp_path, img):
