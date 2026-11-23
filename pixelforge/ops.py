@@ -198,6 +198,15 @@ def op_solarize(img, threshold=128):
     return _from_arr(out, a)
 
 
+def op_pixelate(img, size=8):
+    # blocky mosaic: shrink it down, then blow it back up chunky
+    rgb, a = _split(img)
+    w, h = rgb.size
+    small = rgb.resize((max(1, w // size), max(1, h // size)), Image.NEAREST)
+    big = small.resize((w, h), Image.NEAREST)
+    return _from_arr(np.asarray(big).astype(np.float32), a)
+
+
 # --- geometry ---
 
 
@@ -379,6 +388,11 @@ OPS = {
         "fn": op_solarize,
         "desc": "Flip tones above the threshold to their negative, keep the rest. Darkroom solarization look.",
         "params": {"threshold": _p("integer", 128, "Tones above this get inverted", min=0, max=255)},
+    },
+    "pixelate": {
+        "fn": op_pixelate,
+        "desc": "Blocky mosaic, big chunky pixels. Bigger size = chunkier.",
+        "params": {"size": _p("integer", 8, "Pixel block size in px", min=2, max=64)},
     },
     "crop": {
         "fn": op_crop,

@@ -46,6 +46,7 @@ ALL_OPS = {
     "equalize": {},
     "sepia": {"intensity": 1},
     "solarize": {"threshold": 128},
+    "pixelate": {"size": 8},
     "text": {"text": "test", "size": 20},
     "border": {"width": 5},
 }
@@ -117,6 +118,17 @@ def test_solarize_flips_bright_tones(img):
     bright = src > 128
     assert np.array_equal(got[bright], 255 - src[bright])
     assert np.array_equal(got[~bright], src[~bright])
+
+
+def test_pixelate_blocks_pixels(img):
+    out, _ = apply_ops(img, [{"op": "pixelate", "size": 8}])
+    assert out.size == img.size
+    arr = np.asarray(out.convert("RGB"))
+    # every pixel inside an 8x8 block is identical
+    assert (arr[0, 0] == arr[4, 4]).all()
+    assert (arr[0, 0] == arr[7, 7]).all()
+    # neighbour blocks differ on a gradient
+    assert not (arr[0, 0] == arr[0, 8]).all()
 
 
 def test_cli_edit_roundtrip(tmp_path, img):
