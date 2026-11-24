@@ -207,6 +207,18 @@ def op_pixelate(img, size=8):
     return _from_arr(np.asarray(big).astype(np.float32), a)
 
 
+def op_emboss(img, strength=1.0):
+    # raised relief look, like stamped metal; 0 keeps the original
+    if strength <= 0:
+        return img
+    rgb, a = _split(img)
+    emb = rgb.filter(ImageFilter.EMBOSS)
+    if strength >= 1.0:
+        return _join(emb, a)
+    arr = _arr(rgb)
+    return _from_arr(arr + (_arr(emb) - arr) * strength, a)
+
+
 # --- geometry ---
 
 
@@ -393,6 +405,11 @@ OPS = {
         "fn": op_pixelate,
         "desc": "Blocky mosaic, big chunky pixels. Bigger size = chunkier.",
         "params": {"size": _p("integer", 8, "Pixel block size in px", min=2, max=64)},
+    },
+    "emboss": {
+        "fn": op_emboss,
+        "desc": "Raised relief look, like stamped metal. 0 keeps the original.",
+        "params": {"strength": _p("number", 1.0, "Emboss strength", min=0, max=1)},
     },
     "crop": {
         "fn": op_crop,

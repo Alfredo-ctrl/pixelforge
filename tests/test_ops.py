@@ -47,6 +47,7 @@ ALL_OPS = {
     "sepia": {"intensity": 1},
     "solarize": {"threshold": 128},
     "pixelate": {"size": 8},
+    "emboss": {"strength": 1},
     "text": {"text": "test", "size": 20},
     "border": {"width": 5},
 }
@@ -129,6 +130,15 @@ def test_pixelate_blocks_pixels(img):
     assert (arr[0, 0] == arr[7, 7]).all()
     # neighbour blocks differ on a gradient
     assert not (arr[0, 0] == arr[0, 8]).all()
+
+
+def test_emboss_relief(img):
+    out, _ = apply_ops(img, [{"op": "emboss", "strength": 1}])
+    assert out.size == img.size
+    assert not np.array_equal(np.asarray(out), np.asarray(img))
+    # strength 0 leaves the image alone
+    out0, _ = apply_ops(img, [{"op": "emboss", "strength": 0}])
+    assert np.array_equal(np.asarray(out0), np.asarray(img))
 
 
 def test_cli_edit_roundtrip(tmp_path, img):
