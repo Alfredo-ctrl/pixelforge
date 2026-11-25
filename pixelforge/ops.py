@@ -219,6 +219,18 @@ def op_emboss(img, strength=1.0):
     return _from_arr(arr + (_arr(emb) - arr) * strength, a)
 
 
+def op_edge(img, strength=1.0):
+    # outlines only, like a pencil sketch; 0 keeps the original
+    if strength <= 0:
+        return img
+    rgb, a = _split(img)
+    edged = rgb.filter(ImageFilter.FIND_EDGES)
+    if strength >= 1.0:
+        return _join(edged, a)
+    arr = _arr(rgb)
+    return _from_arr(arr + (_arr(edged) - arr) * strength, a)
+
+
 # --- geometry ---
 
 
@@ -410,6 +422,11 @@ OPS = {
         "fn": op_emboss,
         "desc": "Raised relief look, like stamped metal. 0 keeps the original.",
         "params": {"strength": _p("number", 1.0, "Emboss strength", min=0, max=1)},
+    },
+    "edge": {
+        "fn": op_edge,
+        "desc": "Edge detection, outlines only like a pencil sketch. 0 keeps the original.",
+        "params": {"strength": _p("number", 1.0, "Edge strength", min=0, max=1)},
     },
     "crop": {
         "fn": op_crop,

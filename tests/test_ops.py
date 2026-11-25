@@ -48,6 +48,7 @@ ALL_OPS = {
     "solarize": {"threshold": 128},
     "pixelate": {"size": 8},
     "emboss": {"strength": 1},
+    "edge": {"strength": 1},
     "text": {"text": "test", "size": 20},
     "border": {"width": 5},
 }
@@ -138,6 +139,18 @@ def test_emboss_relief(img):
     assert not np.array_equal(np.asarray(out), np.asarray(img))
     # strength 0 leaves the image alone
     out0, _ = apply_ops(img, [{"op": "emboss", "strength": 0}])
+    assert np.array_equal(np.asarray(out0), np.asarray(img))
+
+
+def test_edge_outlines(img):
+    out, _ = apply_ops(img, [{"op": "edge", "strength": 1}])
+    assert out.size == img.size
+    assert not np.array_equal(np.asarray(out), np.asarray(img))
+    # flat areas go dark, only edges stay bright
+    arr = np.asarray(out.convert("RGB")).astype(int)
+    assert arr.mean() < np.asarray(img).mean()
+    # strength 0 leaves the image alone
+    out0, _ = apply_ops(img, [{"op": "edge", "strength": 0}])
     assert np.array_equal(np.asarray(out0), np.asarray(img))
 
 
