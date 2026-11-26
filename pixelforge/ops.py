@@ -231,6 +231,16 @@ def op_edge(img, strength=1.0):
     return _from_arr(arr + (_arr(edged) - arr) * strength, a)
 
 
+def op_grain(img, strength=0.2):
+    # film grain: random speckle like old analog photos; 0 keeps the original
+    if strength <= 0:
+        return img
+    rgb, a = _split(img)
+    rng = np.random.default_rng(7)
+    noise = rng.normal(0, strength * 40, _arr(rgb).shape[:2])[..., None]
+    return _from_arr(_arr(rgb) + noise, a)
+
+
 # --- geometry ---
 
 
@@ -427,6 +437,11 @@ OPS = {
         "fn": op_edge,
         "desc": "Edge detection, outlines only like a pencil sketch. 0 keeps the original.",
         "params": {"strength": _p("number", 1.0, "Edge strength", min=0, max=1)},
+    },
+    "grain": {
+        "fn": op_grain,
+        "desc": "Film grain, random speckle like old analog photos. 0 keeps the original.",
+        "params": {"strength": _p("number", 0.2, "Grain strength", min=0, max=1)},
     },
     "crop": {
         "fn": op_crop,

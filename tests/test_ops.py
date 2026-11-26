@@ -49,6 +49,7 @@ ALL_OPS = {
     "pixelate": {"size": 8},
     "emboss": {"strength": 1},
     "edge": {"strength": 1},
+    "grain": {"strength": 0.5},
     "text": {"text": "test", "size": 20},
     "border": {"width": 5},
 }
@@ -151,6 +152,18 @@ def test_edge_outlines(img):
     assert arr.mean() < np.asarray(img).mean()
     # strength 0 leaves the image alone
     out0, _ = apply_ops(img, [{"op": "edge", "strength": 0}])
+    assert np.array_equal(np.asarray(out0), np.asarray(img))
+
+
+def test_grain_speckle(img):
+    out, _ = apply_ops(img, [{"op": "grain", "strength": 0.5}])
+    assert out.size == img.size
+    assert not np.array_equal(np.asarray(out), np.asarray(img))
+    # same seed every time, so two runs match
+    out2, _ = apply_ops(img, [{"op": "grain", "strength": 0.5}])
+    assert np.array_equal(np.asarray(out), np.asarray(out2))
+    # strength 0 leaves the image alone
+    out0, _ = apply_ops(img, [{"op": "grain", "strength": 0}])
     assert np.array_equal(np.asarray(out0), np.asarray(img))
 
 
