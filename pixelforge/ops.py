@@ -268,6 +268,15 @@ def op_duotone(img, shadow="#000000", highlight="#ffffff"):
     return _from_arr(out, a)
 
 
+def op_threshold(img, threshold=128):
+    # black or white, nothing in between. good for scans, logos and stamps
+    rgb, a = _split(img)
+    arr = _arr(rgb)
+    bw = (_lum(arr) >= threshold).astype(np.float32) * 255.0
+    out = np.stack([bw, bw, bw], axis=-1)
+    return _from_arr(out, a)
+
+
 def op_crop(img, left=0, top=0, right=0, bottom=0):
     w, h = img.size
     r = w if not right else right
@@ -474,6 +483,11 @@ OPS = {
             "shadow": _p("string", "#000000", "Color for the dark parts, as hex"),
             "highlight": _p("string", "#ffffff", "Color for the bright parts, as hex"),
         },
+    },
+    "threshold": {
+        "fn": op_threshold,
+        "desc": "Black or white only, no grays. Pixels above the threshold go white.",
+        "params": {"threshold": _p("integer", 128, "Cutoff brightness, 0 to 255", min=0, max=255)},
     },
     "crop": {
         "fn": op_crop,

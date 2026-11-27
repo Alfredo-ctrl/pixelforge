@@ -51,6 +51,7 @@ ALL_OPS = {
     "edge": {"strength": 1},
     "grain": {"strength": 0.5},
     "duotone": {"shadow": "#0000ff", "highlight": "#ffff00"},
+    "threshold": {"threshold": 128},
     "text": {"text": "test", "size": 20},
     "border": {"width": 5},
 }
@@ -196,3 +197,14 @@ def test_duotone_maps_black_and_white():
 def test_duotone_bad_color(img):
     with pytest.raises(ValueError, match="hex"):
         apply_ops(img, [{"op": "duotone", "shadow": "notacolor"}])
+
+
+def test_threshold_is_binary():
+    tiny = Image.new("RGB", (2, 1))
+    tiny.putpixel((0, 0), (10, 10, 10))
+    tiny.putpixel((1, 0), (250, 250, 250))
+    out, _ = apply_ops(tiny, [{"op": "threshold", "threshold": 128}])
+    px = np.asarray(out.convert("RGB"))
+    assert tuple(px[0, 0]) == (0, 0, 0)
+    assert tuple(px[0, 1]) == (255, 255, 255)
+    assert set(np.unique(px)) <= {0, 255}
