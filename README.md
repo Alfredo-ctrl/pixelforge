@@ -1,6 +1,6 @@
 # pixelforge
 
-Image editing for AI agents. No GUI, no account, no vendor lock-in: a CLI, a Python API and an MCP server that any agent can drive — Muse, Antigravity, Codex, Claude Code, or a local model.
+Edit images from the terminal: exposure, color, crops, effects. One JSON command per edit, no editor to open — built for scripts and agents that need to change a photo and move on.
 
 ## Install
 
@@ -39,13 +39,13 @@ Output is JSON, so it is easy to parse:
 
 ## How an agent uses it
 
-You translate the user's words into ops. `pixelforge ops` lists every operation with its parameters and valid ranges, so there is nothing to guess. Examples:
+You turn the user's words into ops. `pixelforge ops` lists every operation with its parameters and valid ranges, so there is nothing to guess. What people usually ask for:
 
 - "make it warmer and brighter" -> temperature +15, exposure +0.3
 - "punchy, high contrast black and white" -> grayscale, contrast 1.3, clarity 40
 - "soften the whole frame" -> blur 3
 
-If the user asks for something that is not an op yet, add it — see CONTRIBUTING.md. That is the whole point: the tool grows with what people ask for.
+Need an op that is not there yet? Add it — CONTRIBUTING.md has the shape: one function, one entry in OPS, one test.
 
 ## Use it from Python
 
@@ -59,7 +59,7 @@ save_image(out, "photo-edit.jpg")
 
 ## MCP server
 
-Any MCP client can use pixelforge as tools:
+Any MCP client can use pixelforge as tools, same ops as the CLI:
 
 ```sh
 pixelforge mcp
