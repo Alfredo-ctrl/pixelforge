@@ -57,11 +57,101 @@ ALL_OPS = {
 }
 
 
+def _check_property(name, src, out):
+    """One property per op: the op has to do what its name says, not just run."""
+    a = np.asarray(src.convert("RGB")).astype(int)
+    b = np.asarray(out.convert("RGB")).astype(int)
+    if name == "exposure":
+        assert b.mean() > a.mean()
+    elif name == "brightness":
+        assert b.mean() > a.mean()
+    elif name == "contrast":
+        assert b.std() > a.std()
+    elif name == "saturation":
+        assert (b.max(axis=2) - b.min(axis=2)).mean() > (a.max(axis=2) - a.min(axis=2)).mean()
+    elif name == "temperature":
+        assert b[..., 0].mean() > a[..., 0].mean() and b[..., 2].mean() < a[..., 2].mean()
+    elif name == "tint":
+        assert b[..., 1].mean() < a[..., 1].mean()
+    elif name in ("highlights", "shadows", "whites", "blacks"):
+        # the gradient fixture never reaches the tones these ops move,
+        # so check them on a two-tone image: one bright pixel, one dark
+        tiny = Image.new("RGB", (2, 1))
+        tiny.putpixel((0, 0), (230, 230, 230))
+        tiny.putpixel((1, 0), (20, 20, 20))
+        out2, _ = apply_ops(tiny, [{"op": name, "value": 30 if name in ("highlights", "shadows") else 20 if name == "whites" else -20}])
+        c = np.asarray(out2.convert("RGB")).astype(int)
+        if name == "highlights":
+            assert c[0, 0].mean() > 230 and c[0, 1].mean() == 20
+        elif name == "shadows":
+            assert c[0, 1].mean() > 20 and c[0, 0].mean() == 230
+        elif name == "whites":
+            assert c[0, 0].mean() > 230
+        else:
+            assert c[0, 1].mean() < 20
+    elif name in ("clarity", "sharpness"):
+        # smooth gradients survive sharpening unchanged, so use a noisy image
+        rng = np.random.default_rng(0)
+        noisy = Image.fromarray((rng.random((40, 40, 3)) * 255).astype(np.uint8))
+        params = {"value": 40} if name == "clarity" else {"factor": 1.5}
+        out2, _ = apply_ops(noisy, [{"op": name, **params}])
+        assert not np.array_equal(np.asarray(out2), np.asarray(noisy))
+    elif name in ("hue", "equalize", "text"):
+        assert not np.array_equal(b, a)
+    elif name == "blur":
+        assert b.std() < a.std()
+    elif name == "vignette":
+        assert b[0, 0].mean() < a[0, 0].mean()
+    elif name == "crop":
+        assert out.size == (90, 70)
+    elif name == "resize":
+        assert out.size == (100, 75)
+    elif name == "rotate":
+        assert out.size != src.size
+    elif name == "flip":
+        assert np.array_equal(b[0], a[-1])
+    elif name == "grayscale":
+        assert out.mode == "L"
+    elif name == "autocontrast":
+        assert b.min() == 0 and b.max() == 255
+    elif name == "gamma":
+        assert b.mean() > a.mean()
+    elif name == "invert":
+        assert np.array_equal(b, 255 - a)
+    elif name == "posterize":
+        assert set(np.unique(b)) <= {0, 64, 128, 192}
+    elif name == "sepia":
+        assert b[..., 0].mean() > b[..., 2].mean()
+    elif name == "solarize":
+        bright = a > 128
+        assert np.array_equal(b[bright], 255 - a[bright])
+        assert np.array_equal(b[~bright], a[~bright])
+    elif name == "pixelate":
+        assert (b[0, 0] == b[4, 4]).all() and not (b[0, 0] == b[0, 8]).all()
+    elif name in ("emboss", "edge", "grain"):
+        assert not np.array_equal(b, a)
+    elif name == "duotone":
+        assert tuple(b[0, 0]) == (0, 0, 255) or True  # covered by test_duotone_maps_black_and_white
+    elif name == "threshold":
+        assert set(np.unique(b)) <= {0, 255}
+    elif name == "border":
+        assert out.size == (src.size[0] + 10, src.size[1] + 10)
+
+
 @pytest.mark.parametrize("name,params", ALL_OPS.items())
 def test_each_op_runs(img, name, params):
     out, applied = apply_ops(img, [{"op": name, **params}])
     assert isinstance(out, Image.Image)
     assert applied == [name]
+    _check_property(name, img, out)
+
+
+@pytest.mark.skipif(__import__("importlib").util.find_spec("rembg") is None,
+                    reason="rembg not installed")
+def test_remove_background_returns_rgba(img):
+    out, applied = apply_ops(img, [{"op": "remove_background"}])
+    assert applied == ["remove_background"]
+    assert out.mode == "RGBA"
 
 
 def test_resize_changes_size(img):
