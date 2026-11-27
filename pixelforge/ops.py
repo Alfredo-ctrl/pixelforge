@@ -244,6 +244,30 @@ def op_grain(img, strength=0.2):
 # --- geometry ---
 
 
+def _hex_to_rgb(hexstr):
+    # "#ff8800" -> (255, 136, 0). anything else is a bad color
+    if not isinstance(hexstr, str):
+        raise ValueError(f"color has to be hex text like '#ff8800', got {hexstr!r}")
+    h = hexstr.lstrip("#")
+    if len(h) != 6:
+        raise ValueError(f"color has to be 6 hex digits like '#ff8800', got {hexstr!r}")
+    try:
+        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        raise ValueError(f"color has to be 6 hex digits like '#ff8800', got {hexstr!r}")
+
+
+def op_duotone(img, shadow="#000000", highlight="#ffffff"):
+    # two-tone print: dark parts take the shadow color, bright parts the highlight
+    rgb, a = _split(img)
+    arr = _arr(rgb)
+    lum = (_lum(arr) / 255.0)[..., None]
+    lo = np.array(_hex_to_rgb(shadow), dtype=np.float32)
+    hi = np.array(_hex_to_rgb(highlight), dtype=np.float32)
+    out = lo * (1 - lum) + hi * lum
+    return _from_arr(out, a)
+
+
 def op_crop(img, left=0, top=0, right=0, bottom=0):
     w, h = img.size
     r = w if not right else right
@@ -442,6 +466,14 @@ OPS = {
         "fn": op_grain,
         "desc": "Film grain, random speckle like old analog photos. 0 keeps the original.",
         "params": {"strength": _p("number", 0.2, "Grain strength", min=0, max=1)},
+    },
+    "duotone": {
+        "fn": op_duotone,
+        "desc": "Two-tone print look: shadows take one color, highlights take another.",
+        "params": {
+            "shadow": _p("string", "#000000", "Color for the dark parts, as hex"),
+            "highlight": _p("string", "#ffffff", "Color for the bright parts, as hex"),
+        },
     },
     "crop": {
         "fn": op_crop,

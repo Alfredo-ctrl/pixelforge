@@ -50,6 +50,7 @@ ALL_OPS = {
     "emboss": {"strength": 1},
     "edge": {"strength": 1},
     "grain": {"strength": 0.5},
+    "duotone": {"shadow": "#0000ff", "highlight": "#ffff00"},
     "text": {"text": "test", "size": 20},
     "border": {"width": 5},
 }
@@ -180,3 +181,18 @@ def test_cli_edit_roundtrip(tmp_path, img):
     payload = json.loads(r.stdout)
     assert payload["ops_applied"] == ["temperature"]
     assert load_image(str(dst)).size == img.size
+
+
+def test_duotone_maps_black_and_white():
+    tiny = Image.new("RGB", (2, 1))
+    tiny.putpixel((0, 0), (0, 0, 0))
+    tiny.putpixel((1, 0), (255, 255, 255))
+    out, _ = apply_ops(tiny, [{"op": "duotone", "shadow": "#0000ff", "highlight": "#ffff00"}])
+    px = np.asarray(out.convert("RGB"))
+    assert tuple(px[0, 0]) == (0, 0, 255)
+    assert tuple(px[0, 1]) == (255, 255, 0)
+
+
+def test_duotone_bad_color(img):
+    with pytest.raises(ValueError, match="hex"):
+        apply_ops(img, [{"op": "duotone", "shadow": "notacolor"}])
