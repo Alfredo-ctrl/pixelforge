@@ -1,4 +1,4 @@
-"""Load and save images. Keeps it boring on purpose."""
+"""Load and save images with Pillow."""
 
 import os
 

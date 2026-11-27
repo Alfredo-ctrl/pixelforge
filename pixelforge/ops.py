@@ -10,6 +10,12 @@ import json
 import numpy as np
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
 
+_TEMP_SHIFT = 0.6  # channel points per unit of temperature/tint
+_TONAL_STRENGTH = 0.5  # how far highlights/shadows move per unit of value
+_TONAL_EDGE_STRENGTH = 0.4  # whites/blacks cover a narrower band, so less
+_CLARITY_BLEND = 0.6  # how much of the sharpened image clarity mixes in
+_GRAIN_SEED = 7  # fixed so grain is the same on every run, tests included
+
 
 def _split(img):
     # work on RGB, keep the alpha channel aside so it survives the edit
@@ -61,59 +67,50 @@ def op_saturation(img, factor=1.0):
 def op_temperature(img, value=0.0):
     rgb, a = _split(img)
     arr = _arr(rgb)
-    arr[..., 0] += value * 0.6
-    arr[..., 2] -= value * 0.6
+    arr[..., 0] += value * _TEMP_SHIFT
+    arr[..., 2] -= value * _TEMP_SHIFT
     return _from_arr(arr, a)
 
 
 def op_tint(img, value=0.0):
     rgb, a = _split(img)
     arr = _arr(rgb)
-    arr[..., 1] += value * 0.6
+    arr[..., 1] += value * _TEMP_SHIFT
+    return _from_arr(arr, a)
+
+
+def _tonal(img, value, pivot, slope, strength, dark_side=False):
+    """Shift one band of tones: bright side above pivot, dark side below it."""
+    rgb, a = _split(img)
+    arr = _arr(rgb)
+    lum = _lum(arr) / 255.0
+    dist = (pivot - lum) * slope if dark_side else (lum - pivot) * slope
+    mask = np.clip(dist, 0, 1) ** 2
+    arr += (value * strength) * mask[..., None]
     return _from_arr(arr, a)
 
 
 def op_highlights(img, value=0.0):
-    rgb, a = _split(img)
-    arr = _arr(rgb)
-    lum = _lum(arr) / 255.0
-    mask = np.clip((lum - 0.5) * 2, 0, 1) ** 2
-    arr += (value * 0.5) * mask[..., None]
-    return _from_arr(arr, a)
+    return _tonal(img, value, 0.5, 2, _TONAL_STRENGTH)
 
 
 def op_shadows(img, value=0.0):
-    rgb, a = _split(img)
-    arr = _arr(rgb)
-    lum = _lum(arr) / 255.0
-    mask = np.clip((0.5 - lum) * 2, 0, 1) ** 2
-    arr += (value * 0.5) * mask[..., None]
-    return _from_arr(arr, a)
+    return _tonal(img, value, 0.5, 2, _TONAL_STRENGTH, dark_side=True)
 
 
 def op_whites(img, value=0.0):
-    rgb, a = _split(img)
-    arr = _arr(rgb)
-    lum = _lum(arr) / 255.0
-    mask = np.clip((lum - 0.75) * 4, 0, 1) ** 2
-    arr += (value * 0.4) * mask[..., None]
-    return _from_arr(arr, a)
+    return _tonal(img, value, 0.75, 4, _TONAL_EDGE_STRENGTH)
 
 
 def op_blacks(img, value=0.0):
-    rgb, a = _split(img)
-    arr = _arr(rgb)
-    lum = _lum(arr) / 255.0
-    mask = np.clip((0.25 - lum) * 4, 0, 1) ** 2
-    arr += (value * 0.4) * mask[..., None]
-    return _from_arr(arr, a)
+    return _tonal(img, value, 0.25, 4, _TONAL_EDGE_STRENGTH, dark_side=True)
 
 
 def op_clarity(img, value=0.0):
     if value == 0:
         return img
     sharp = img.filter(ImageFilter.UnsharpMask(radius=2, percent=int(value), threshold=2))
-    return Image.blend(img, sharp, 0.6)
+    return Image.blend(img, sharp, _CLARITY_BLEND)
 
 
 def op_sharpness(img, factor=1.0):
@@ -191,7 +188,6 @@ def op_sepia(img, intensity=1.0):
 
 
 def op_solarize(img, threshold=128):
-    # flip the bright tones, keep the dark ones — classic darkroom look
     rgb, a = _split(img)
     arr = _arr(rgb)
     out = np.where(arr > threshold, 255 - arr, arr)
@@ -199,7 +195,6 @@ def op_solarize(img, threshold=128):
 
 
 def op_pixelate(img, size=8):
-    # blocky mosaic: shrink it down, then blow it back up chunky
     rgb, a = _split(img)
     w, h = rgb.size
     small = rgb.resize((max(1, w // size), max(1, h // size)), Image.NEAREST)
@@ -208,7 +203,6 @@ def op_pixelate(img, size=8):
 
 
 def op_emboss(img, strength=1.0):
-    # raised relief look, like stamped metal; 0 keeps the original
     if strength <= 0:
         return img
     rgb, a = _split(img)
@@ -220,7 +214,6 @@ def op_emboss(img, strength=1.0):
 
 
 def op_edge(img, strength=1.0):
-    # outlines only, like a pencil sketch; 0 keeps the original
     if strength <= 0:
         return img
     rgb, a = _split(img)
@@ -232,11 +225,10 @@ def op_edge(img, strength=1.0):
 
 
 def op_grain(img, strength=0.2):
-    # film grain: random speckle like old analog photos; 0 keeps the original
     if strength <= 0:
         return img
     rgb, a = _split(img)
-    rng = np.random.default_rng(7)
+    rng = np.random.default_rng(_GRAIN_SEED)
     noise = rng.normal(0, strength * 40, _arr(rgb).shape[:2])[..., None]
     return _from_arr(_arr(rgb) + noise, a)
 
@@ -258,7 +250,6 @@ def _hex_to_rgb(hexstr):
 
 
 def op_duotone(img, shadow="#000000", highlight="#ffffff"):
-    # two-tone print: dark parts take the shadow color, bright parts the highlight
     rgb, a = _split(img)
     arr = _arr(rgb)
     lum = (_lum(arr) / 255.0)[..., None]
@@ -269,7 +260,6 @@ def op_duotone(img, shadow="#000000", highlight="#ffffff"):
 
 
 def op_threshold(img, threshold=128):
-    # black or white, nothing in between. good for scans, logos and stamps
     rgb, a = _split(img)
     arr = _arr(rgb)
     bw = (_lum(arr) >= threshold).astype(np.float32) * 255.0
